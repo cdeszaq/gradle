@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import org.gradle.api.Action;
 import org.gradle.api.artifacts.ModuleIdentifier;
 import org.gradle.api.artifacts.component.ComponentIdentifier;
+import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.component.ModuleComponentSelector;
 import org.gradle.api.artifacts.result.ResolvedVariantResult;
@@ -84,6 +85,7 @@ public class NodeState implements DependencyGraphNode {
 
     // In opposite to outgoing edges, virtual edges are for now pretty rare, so they are created lazily
     private List<EdgeState> virtualEdges;
+    private Set<ModuleIdentifier> subgraphConstraints;
     private boolean queued;
     private boolean evicted;
     private int transitiveEdgeCount;
@@ -207,6 +209,10 @@ public class NodeState implements DependencyGraphNode {
 
     public boolean isTransitive() {
         return isTransitive;
+    }
+
+    public boolean containsSubgraphConstraint(ModuleIdentifier moduleIdentifier) {
+        return subgraphConstraints != null && subgraphConstraints.contains(moduleIdentifier);
     }
 
     /**
@@ -376,6 +382,7 @@ public class NodeState implements DependencyGraphNode {
                 if (!pendingState.isPending()) {
                     createAndLinkEdgeState(dependencyState, discoveredEdges, resolutionFilter, pendingState == PendingDependenciesVisitor.PendingState.NOT_PENDING_ACTIVATING);
                 }
+                maybeAddSubgraphConstraint(dependencyState);
             }
             previousTraversalExclusions = resolutionFilter;
         } finally {
@@ -384,6 +391,22 @@ public class NodeState implements DependencyGraphNode {
             // This way, all edges of the node will be re-processed.
             pendingDepsVisitor.complete();
         }
+    }
+
+    private void maybeAddSubgraphConstraint(DependencyState dependencyState) {
+        ComponentSelector selector = dependencyState.getDependency().getSelector();
+        if (selector instanceof ModuleComponentSelector) {
+            if (((ModuleComponentSelector) selector).getVersionConstraint().isForSubgraph()) {
+                if (subgraphConstraints == null) {
+                    subgraphConstraints = Sets.newHashSet();
+                }
+                subgraphConstraints.add(((ModuleComponentSelector) selector).getModuleIdentifier());
+            }
+        }
+        // TODO -- CONSTRAINT INHERITANCE
+        // if (dependencyState.getDependency().getType() == DependencyMetadataType.INHERITING_DEPENDENCY) {
+        //    inheritingDependencies.add(dependency.getDependency().getSelector());
+        // }
     }
 
     private void registerActivatingConstraint(DependencyState dependencyState) {
@@ -443,8 +466,9 @@ public class NodeState implements DependencyGraphNode {
     }
 
     private void createAndLinkEdgeState(DependencyState dependencyState, Collection<EdgeState> discoveredEdges, ExcludeSpec resolutionFilter, boolean deferSelection) {
+        resolveState.getModule(dependencyState.getModuleIdentifier()).addParent(getOwner().getModule());
         EdgeState dependencyEdge = edgesCache.computeIfAbsent(dependencyState, ds -> new EdgeState(this, ds, resolutionFilter, resolveState));
-        dependencyEdge.getSelector().update(dependencyState);
+        dependencyEdge.getSelector().update(dependencyState, resolveState.getModule(dependencyState.getModuleIdentifier()).ignoreVersion(getOwner().getModule()));
         outgoingEdges.add(dependencyEdge);
         discoveredEdges.add(dependencyEdge);
         dependencyEdge.getSelector().use(deferSelection);

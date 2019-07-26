@@ -73,6 +73,7 @@ class SelectorState implements DependencyGraphSelector, ResolvableSelectorState 
     private boolean forced;
     private boolean softForced;
     private boolean fromLock;
+    private boolean ignoreVersionConstraint;
 
     // An internal counter used to track the number of outgoing edges
     // that use this selector. Since a module resolve state tracks all selectors
@@ -82,11 +83,11 @@ class SelectorState implements DependencyGraphSelector, ResolvableSelectorState 
     // evicted, but it can still be reintegrated later in a different path.
     private int outgoingEdgeCount;
 
-    SelectorState(Long id, DependencyState dependencyState, DependencyToComponentIdResolver resolver, ResolveState resolveState, ModuleIdentifier targetModuleId) {
+    SelectorState(Long id, DependencyState dependencyState, boolean ignoreVersionConstraint, DependencyToComponentIdResolver resolver, ResolveState resolveState, ModuleIdentifier targetModuleId) {
         this.id = id;
         this.resolver = resolver;
         this.targetModule = resolveState.getModule(targetModuleId);
-        update(dependencyState);
+        update(dependencyState, ignoreVersionConstraint);
         this.dependencyState = dependencyState;
         this.firstSeenDependency = dependencyState.getDependency();
         this.versionConstraint = resolveState.resolveVersionConstraint(firstSeenDependency.getSelector());
@@ -151,18 +152,22 @@ class SelectorState implements DependencyGraphSelector, ResolvableSelectorState 
      */
     @Override
     public ComponentIdResolveResult resolve(VersionSelector allRejects) {
-        VersionSelector requiredSelector = versionConstraint == null ? null : versionConstraint.getRequiredSelector();
+        VersionSelector requiredSelector = ignoreVersionConstraint() ? null : versionConstraint.getRequiredSelector();
         requireResult = resolve(requiredSelector, allRejects, requireResult);
         return requireResult;
     }
 
     @Override
     public ComponentIdResolveResult resolvePrefer(VersionSelector allRejects) {
-        if (versionConstraint == null || versionConstraint.getPreferredSelector() == null) {
+        if (ignoreVersionConstraint() || versionConstraint.getPreferredSelector() == null) {
             return null;
         }
         preferResult = resolve(versionConstraint.getPreferredSelector(), allRejects, preferResult);
         return preferResult;
+    }
+
+    private boolean ignoreVersionConstraint() {
+        return versionConstraint == null || ignoreVersionConstraint;
     }
 
     private ComponentIdResolveResult resolve(VersionSelector selector, VersionSelector rejector, ComponentIdResolveResult previousResult) {
@@ -248,7 +253,7 @@ class SelectorState implements DependencyGraphSelector, ResolvableSelectorState 
     public ComponentSelectionReasonInternal getSelectionReason() {
         return ComponentSelectionReasons.of(dependencyReasons);
     }
-     
+
     /**
      * Append selection descriptors to the supplied "reason", enhancing with any 'unmatched' or 'rejected' reasons.
      */
@@ -313,7 +318,18 @@ class SelectorState implements DependencyGraphSelector, ResolvableSelectorState 
         return fromLock;
     }
 
-    public void update(DependencyState dependencyState) {
+    public void update(DependencyState dependencyState, boolean ignoreVersionConstraint) {
+        if (this.ignoreVersionConstraint != ignoreVersionConstraint) {
+            this.ignoreVersionConstraint = ignoreVersionConstraint;
+            resolved = false;
+            this.preferResult = null;
+            this.requireResult = null;
+            if (!ignoreVersionConstraint) {
+                dependencyReasons.remove(ComponentSelectionReasons.BY_PARENT);
+            } else if (!dependencyReasons.contains(ComponentSelectionReasons.BY_PARENT)) {
+                dependencyReasons.add(ComponentSelectionReasons.BY_PARENT);
+            }
+        }
         if (dependencyState != this.dependencyState) {
             if (!forced && dependencyState.isForced()) {
                 forced = true;

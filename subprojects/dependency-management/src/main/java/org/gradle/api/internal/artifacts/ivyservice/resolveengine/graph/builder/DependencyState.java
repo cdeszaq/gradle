@@ -28,6 +28,7 @@ import org.gradle.internal.resolve.ModuleVersionResolveException;
 
 import java.util.List;
 
+import static org.gradle.api.internal.artifacts.ivyservice.resolveengine.result.ComponentSelectionReasons.BY_PARENT;
 import static org.gradle.api.internal.artifacts.ivyservice.resolveengine.result.ComponentSelectionReasons.CONSTRAINT;
 import static org.gradle.api.internal.artifacts.ivyservice.resolveengine.result.ComponentSelectionReasons.FORCED;
 import static org.gradle.api.internal.artifacts.ivyservice.resolveengine.result.ComponentSelectionReasons.REQUESTED;
@@ -130,6 +131,10 @@ class DependencyState {
 
     private void addMainReason(List<ComponentSelectionDescriptorInternal> reasons) {
         ComponentSelectionDescriptorInternal dependencyDescriptor = dependency.getType() == DependencyMetadataType.CONSTRAINT_ONLY ? CONSTRAINT : REQUESTED;
+        if (reasons.contains(BY_PARENT)) {
+            // TODO clean up the reason updating code
+            dependencyDescriptor = BY_PARENT;
+        }
         String reason = dependency.getReason();
         if (reason != null) {
             dependencyDescriptor = dependencyDescriptor.withDescription(Describables.of(reason));

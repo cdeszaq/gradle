@@ -161,12 +161,13 @@ class ResolveState implements ComponentStateFactory<ComponentState> {
         return selectors.values();
     }
 
-    public SelectorState getSelector(DependencyState dependencyState) {
+    public SelectorState getSelector(DependencyState dependencyState, ModuleResolveState from) {
+        boolean ignoreVersionConstraint = getModule(dependencyState.getModuleIdentifier()).ignoreVersion(from);
         SelectorState selectorState = selectors.computeIfAbsent(dependencyState.getRequested(), req -> {
             ModuleIdentifier moduleIdentifier = dependencyState.getModuleIdentifier();
-            return new SelectorState(idGenerator.generateId(), dependencyState, idResolver, this, moduleIdentifier);
+            return new SelectorState(idGenerator.generateId(), dependencyState, ignoreVersionConstraint, idResolver, this, moduleIdentifier);
         });
-        selectorState.update(dependencyState);
+        selectorState.update(dependencyState, ignoreVersionConstraint);
         return selectorState;
     }
 

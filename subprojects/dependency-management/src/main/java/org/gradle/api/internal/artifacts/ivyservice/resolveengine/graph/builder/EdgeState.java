@@ -76,7 +76,7 @@ class EdgeState implements DependencyGraphEdge {
         // The accumulated exclusions that apply to this edge based on the path from the root
         this.transitiveExclusions = transitiveExclusions;
         this.resolveState = resolveState;
-        this.selector = resolveState.getSelector(dependencyState);
+        this.selector = resolveState.getSelector(dependencyState, from.getComponent().getModule());
         this.isTransitive = from.isTransitive() && dependencyMetadata.isTransitive();
         this.isConstraint = dependencyMetadata.getType() == DependencyMetadataType.CONSTRAINT_ONLY;
         this.hashCode = computeHashCode();

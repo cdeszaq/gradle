@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -56,6 +57,7 @@ class ModuleResolveState implements CandidateModule {
     private final IdGenerator<Long> idGenerator;
     private final ModuleIdentifier id;
     private final List<EdgeState> unattachedDependencies = new LinkedList<EdgeState>();
+    private final Set<ModuleResolveState> parents = Sets.newHashSet();
     private final Map<ModuleVersionIdentifier, ComponentState> versions = new LinkedHashMap<ModuleVersionIdentifier, ComponentState>();
     private final ModuleSelectors<SelectorState> selectors = new ModuleSelectors<>();
     private final ImmutableAttributesFactory attributesFactory;
@@ -100,6 +102,46 @@ class ModuleResolveState implements CandidateModule {
             platformOwners = Sets.newHashSetWithExpectedSize(1);
         }
         platformOwners.add(owner);
+    }
+
+    void addParent(ModuleResolveState parent) {
+        parents.add(parent);
+    }
+
+    boolean ignoreVersion(ModuleResolveState from) {
+        Set<ModuleResolveState> path = Collections.singleton(this);
+        if (from.overridesVersionConstraint(id, path) && !from.overrideByAllParents(id, path)) {
+            return false; //this is a topmost constraint
+        }
+        return overrideByAllParents(id, path);
+    }
+
+    private boolean overrideByAllParents(ModuleIdentifier moduleIdentifier, Set<ModuleResolveState> path) {
+        if (parents.isEmpty()) {
+            return false;
+        }
+        for (ModuleResolveState parent : parents) {
+            Set<ModuleResolveState> newPath = new HashSet<>(path);
+            newPath.add(parent);
+            if (path.contains(parent) || !parent.overridesVersionConstraint(moduleIdentifier, newPath)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean overridesVersionConstraint(ModuleIdentifier moduleIdentifier, Set<ModuleResolveState> path) {
+        if (getSelected().containsSubgraphConstraint(moduleIdentifier)) {
+            return true;
+        }
+        /* TODO -- CONSTRAINT INHERITANCE
+            for (SelectorOverrides inheritedOverride : parent.inheritedOverrides) {
+                if (inheritedOverride.id != id && inheritedOverride.overrides.contains(moduleIdentifier)) {
+                    return true;
+                }
+            }
+        */
+        return overrideByAllParents(moduleIdentifier, path);
     }
 
     public Set<VirtualPlatformState> getPlatformOwners() {

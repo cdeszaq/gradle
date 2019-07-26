@@ -396,6 +396,15 @@ public class ComponentState implements ComponentResolutionState, DependencyGraph
         }
     }
 
+    boolean containsSubgraphConstraint(ModuleIdentifier moduleIdentifier) {
+        for (NodeState node : getNodes()) {
+            if (!node.containsSubgraphConstraint(moduleIdentifier)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * Describes the possible states of a component in the graph.
      */
