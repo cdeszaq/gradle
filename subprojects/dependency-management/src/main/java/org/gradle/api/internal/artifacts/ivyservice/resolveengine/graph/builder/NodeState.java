@@ -86,6 +86,7 @@ public class NodeState implements DependencyGraphNode {
     // In opposite to outgoing edges, virtual edges are for now pretty rare, so they are created lazily
     private List<EdgeState> virtualEdges;
     private Set<ModuleIdentifier> subgraphConstraints;
+    private Set<ModuleIdentifier> inheritingSubgraphConstraints;
     private boolean queued;
     private boolean evicted;
     private int transitiveEdgeCount;
@@ -211,8 +212,26 @@ public class NodeState implements DependencyGraphNode {
         return isTransitive;
     }
 
-    public boolean containsSubgraphConstraint(ModuleIdentifier moduleIdentifier) {
-        return subgraphConstraints != null && subgraphConstraints.contains(moduleIdentifier);
+    public boolean containsSubgraphConstraint(ModuleIdentifier moduleIdentifier, ModuleIdentifier targetModule) {
+        if (subgraphConstraints != null && subgraphConstraints.contains(moduleIdentifier)) {
+            return true;
+        }
+        if (inheritingSubgraphConstraints != null) {
+            for (ModuleIdentifier inheriting : inheritingSubgraphConstraints) {
+                if (inheriting.equals(targetModule)) {
+                    continue; // skip inheritance edges
+                }
+                ComponentState selected = resolveState.getModule(inheriting).getSelected();
+                if (selected != null) {
+                    for (NodeState currentlySelected : selected.getNodes()) {
+                        if (currentlySelected.containsSubgraphConstraint(moduleIdentifier, targetModule)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -379,10 +398,10 @@ public class NodeState implements DependencyGraphNode {
                 if (dependencyState.getDependency().getType() == DependencyMetadataType.CONSTRAINT_ONLY) {
                     registerActivatingConstraint(dependencyState);
                 }
+                trackSubgraphConstraint(dependencyState);
                 if (!pendingState.isPending()) {
                     createAndLinkEdgeState(dependencyState, discoveredEdges, resolutionFilter, pendingState == PendingDependenciesVisitor.PendingState.NOT_PENDING_ACTIVATING);
                 }
-                maybeAddSubgraphConstraint(dependencyState);
             }
             previousTraversalExclusions = resolutionFilter;
         } finally {
@@ -393,7 +412,7 @@ public class NodeState implements DependencyGraphNode {
         }
     }
 
-    private void maybeAddSubgraphConstraint(DependencyState dependencyState) {
+    private void trackSubgraphConstraint(DependencyState dependencyState) {
         ComponentSelector selector = dependencyState.getDependency().getSelector();
         if (selector instanceof ModuleComponentSelector) {
             if (((ModuleComponentSelector) selector).getVersionConstraint().isForSubgraph()) {
@@ -403,10 +422,12 @@ public class NodeState implements DependencyGraphNode {
                 subgraphConstraints.add(((ModuleComponentSelector) selector).getModuleIdentifier());
             }
         }
-        // TODO -- CONSTRAINT INHERITANCE
-        // if (dependencyState.getDependency().getType() == DependencyMetadataType.INHERITING_DEPENDENCY) {
-        //    inheritingDependencies.add(dependency.getDependency().getSelector());
-        // }
+        if (dependencyState.getDependency().getType() == DependencyMetadataType.INHERITING_DEPENDENCY) {
+            if (inheritingSubgraphConstraints == null) {
+                inheritingSubgraphConstraints = Sets.newHashSet();
+            }
+            inheritingSubgraphConstraints.add(dependencyState.getModuleIdentifier());
+        }
     }
 
     private void registerActivatingConstraint(DependencyState dependencyState) {

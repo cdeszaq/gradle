@@ -58,6 +58,7 @@ class ModuleResolveState implements CandidateModule {
     private final ModuleIdentifier id;
     private final List<EdgeState> unattachedDependencies = new LinkedList<EdgeState>();
     private final Set<ModuleResolveState> parents = Sets.newHashSet();
+    private final Set<ModuleResolveState> inheritingParents = Sets.newHashSet();
     private final Map<ModuleVersionIdentifier, ComponentState> versions = new LinkedHashMap<ModuleVersionIdentifier, ComponentState>();
     private final ModuleSelectors<SelectorState> selectors = new ModuleSelectors<>();
     private final ImmutableAttributesFactory attributesFactory;
@@ -110,7 +111,7 @@ class ModuleResolveState implements CandidateModule {
 
     boolean ignoreVersion(ModuleResolveState from) {
         Set<ModuleResolveState> path = Collections.singleton(this);
-        if (from.overridesVersionConstraint(id, path) && !from.overrideByAllParents(id, path)) {
+        if (from.overridesVersionConstraint(id, id, path) && !from.overrideByAllParents(id, path)) {
             return false; //this is a topmost constraint
         }
         return overrideByAllParents(id, path);
@@ -123,24 +124,19 @@ class ModuleResolveState implements CandidateModule {
         for (ModuleResolveState parent : parents) {
             Set<ModuleResolveState> newPath = new HashSet<>(path);
             newPath.add(parent);
-            if (path.contains(parent) || !parent.overridesVersionConstraint(moduleIdentifier, newPath)) {
+            if (path.contains(parent) // cyclic dependencies involved
+                || !parent.overridesVersionConstraint(moduleIdentifier, id, newPath) // no override from here
+            ) {
                 return false;
             }
         }
         return true;
     }
 
-    private boolean overridesVersionConstraint(ModuleIdentifier moduleIdentifier, Set<ModuleResolveState> path) {
-        if (getSelected().containsSubgraphConstraint(moduleIdentifier)) {
+    private boolean overridesVersionConstraint(ModuleIdentifier moduleIdentifier, ModuleIdentifier targetModule, Set<ModuleResolveState> path) {
+        if (getSelected().containsSubgraphConstraint(moduleIdentifier, targetModule)) {
             return true;
         }
-        /* TODO -- CONSTRAINT INHERITANCE
-            for (SelectorOverrides inheritedOverride : parent.inheritedOverrides) {
-                if (inheritedOverride.id != id && inheritedOverride.overrides.contains(moduleIdentifier)) {
-                    return true;
-                }
-            }
-        */
         return overrideByAllParents(moduleIdentifier, path);
     }
 
@@ -219,7 +215,7 @@ class ModuleResolveState implements CandidateModule {
     public void changeSelection(ComponentState newSelection) {
         assert this.selected != null;
         assert newSelection != null;
-        assert this.selected != newSelection;
+        //assert this.selected != newSelection;
         assert newSelection.getModule() == this;
 
         // Remove any outgoing edges for the current selection

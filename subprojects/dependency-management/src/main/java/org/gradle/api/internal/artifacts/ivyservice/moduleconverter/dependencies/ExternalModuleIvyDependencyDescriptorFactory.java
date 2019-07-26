@@ -55,7 +55,9 @@ public class ExternalModuleIvyDependencyDescriptorFactory extends AbstractIvyDep
                 dependency.getAttributes(),
                 dependency.getTargetConfiguration(),
                 convertArtifacts(dependency.getArtifacts()),
-                excludes, force, changing, transitive, DependencyMetadataType.TRADITIONAL_DEPENDENCY, dependency.getReason());
+                excludes, force, changing, transitive,
+                dependency.isInheritSubgraphConstraints() ? DependencyMetadataType.INHERITING_DEPENDENCY : DependencyMetadataType.TRADITIONAL_DEPENDENCY,
+                dependency.getReason());
         return new DslOriginDependencyMetadataWrapper(dependencyMetaData, dependency);
     }
 
