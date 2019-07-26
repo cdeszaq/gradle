@@ -775,6 +775,11 @@ allprojects {
             this
         }
 
+        NodeBuilder byRequest() {
+            reasons << 'requested'
+            this
+        }
+
         NodeBuilder byConstraint(String reason = null) {
             if (reason == null) {
                 reasons << ComponentSelectionCause.CONSTRAINT.defaultReason
