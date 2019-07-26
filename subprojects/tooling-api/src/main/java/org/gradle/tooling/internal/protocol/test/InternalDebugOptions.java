@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 the original author or authors.
+ * Copyright 2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-package org.gradle.plugin.devel.tasks.internal;
-
-import org.gradle.api.file.FileCollection;
+package org.gradle.tooling.internal.protocol.test;
 
 /**
- * This interface causes the creation of bridge methods in {@link org.gradle.plugin.devel.tasks.ValidateTaskProperties} to make the task backwards compatible with the pre 5.1 version.
+ * Preferences for test debugging.
  *
- * @deprecated Remove in Gradle 6.0.
+ * DO NOT CHANGE THIS INTERFACE. It is part of the cross-version protocol.
+ *
+ * @since 5.6
  */
-@Deprecated
-public interface ValidateTaskPropertiesBackwardsCompatibleAdapter {
-    FileCollection getClasses();
-    FileCollection getClasspath();
+public interface InternalDebugOptions {
+    boolean isDebugMode();
+    int getPort();
 }
