@@ -774,6 +774,10 @@ allprojects {
             this
         }
 
+        NodeBuilder byParent() {
+            byReason(ComponentSelectionCause.BY_PARENT.defaultReason)
+        }
+
         /**
          * Marks that this node was selected by the given reason
          */
