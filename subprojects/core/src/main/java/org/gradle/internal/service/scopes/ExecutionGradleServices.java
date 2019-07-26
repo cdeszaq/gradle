@@ -50,7 +50,7 @@ import org.gradle.internal.execution.steps.CatchExceptionStep;
 import org.gradle.internal.execution.steps.CleanupOutputsStep;
 import org.gradle.internal.execution.steps.CreateOutputsStep;
 import org.gradle.internal.execution.steps.ExecuteStep;
-import org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep;
+import org.gradle.internal.execution.steps.LoadExecutionStateStep;
 import org.gradle.internal.execution.steps.RecordOutputsStep;
 import org.gradle.internal.execution.steps.ResolveCachingStateStep;
 import org.gradle.internal.execution.steps.ResolveChangesStep;
@@ -58,7 +58,7 @@ import org.gradle.internal.execution.steps.ResolveInputChangesStep;
 import org.gradle.internal.execution.steps.SkipEmptyWorkStep;
 import org.gradle.internal.execution.steps.SkipUpToDateStep;
 import org.gradle.internal.execution.steps.SnapshotOutputsStep;
-import org.gradle.internal.execution.steps.StoreSnapshotsStep;
+import org.gradle.internal.execution.steps.StoreExecutionStateStep;
 import org.gradle.internal.execution.steps.TimeoutStep;
 import org.gradle.internal.execution.steps.ValidateStep;
 import org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep;
@@ -138,7 +138,7 @@ public class ExecutionGradleServices {
     ) {
         // @formatter:off
         return new DefaultWorkExecutor<>(
-            new LoadPreviousExecutionStateStep<>(
+            new LoadExecutionStateStep<>(
             new MarkSnapshottingInputsStartedStep<>(
             new SkipEmptyWorkStep<>(
             new ValidateStep<>(
@@ -148,7 +148,7 @@ public class ExecutionGradleServices {
             new ResolveChangesStep<>(changeDetector,
             new SkipUpToDateStep<>(
             new RecordOutputsStep<>(outputFilesRepository,
-            new StoreSnapshotsStep<>(
+            new StoreExecutionStateStep<>(
             new BroadcastChangingOutputsStep<>(outputChangeListener,
             new CacheStep(buildCacheController, buildCacheCommandFactory,
             new SnapshotOutputsStep<>(buildInvocationScopeId.getId(),
