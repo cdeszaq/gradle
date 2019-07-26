@@ -127,7 +127,7 @@ abstract class AbstractModuleDependencySpec extends Specification {
         dependency.attributes.getAttribute(attr2) == 123
     }
 
-    void "subgraph constraint inheritance sets an exact version to strict"() {
+    void "subgraph constraint inheritance can be set"() {
         when:
         dependency
 
@@ -144,46 +144,8 @@ abstract class AbstractModuleDependencySpec extends Specification {
         dependency.inheritSubgraphConstraints
         dependency.versionConstraint.preferredVersion == ""
         dependency.versionConstraint.requiredVersion == "4.4-beta2"
-        dependency.versionConstraint.strictVersion == "4.4-beta2"
+        dependency.versionConstraint.strictVersion == ""
         dependency.versionConstraint.rejectedVersions == []
-
-        when:
-        dependency.version { it.require("a-valid-exact-version") }
-        dependency.inheritSubgraphConstraints()
-
-        then:
-        dependency.inheritSubgraphConstraints
-        dependency.versionConstraint.preferredVersion == ""
-        dependency.versionConstraint.requiredVersion == "a-valid-exact-version"
-        dependency.versionConstraint.strictVersion == "a-valid-exact-version"
-        dependency.versionConstraint.rejectedVersions == []
-    }
-
-    void "subgraph constrain inheritance fails for dynamic versions"() {
-        InvalidUserDataException e
-
-        when:
-        dependency.version { it.require("4.4-beta2+") }
-        dependency.inheritSubgraphConstraints()
-
-        then:
-        e = thrown(InvalidUserDataException)
-        e.message == 'Subgraph constraints inheritance is not supported for dynamic versions!'
-        when:
-        dependency.version { it.require("[4.4-beta2,)") }
-        dependency.inheritSubgraphConstraints()
-
-        then:
-        e = thrown(InvalidUserDataException)
-        e.message == 'Subgraph constraints inheritance is not supported for dynamic versions!'
-
-        when:
-        dependency.version { it.require("latest.release") }
-        dependency.inheritSubgraphConstraints()
-
-        then:
-        e = thrown(InvalidUserDataException)
-        e.message == 'Subgraph constraints inheritance is not supported for dynamic versions!'
     }
 
     void "knows if is equal to"() {

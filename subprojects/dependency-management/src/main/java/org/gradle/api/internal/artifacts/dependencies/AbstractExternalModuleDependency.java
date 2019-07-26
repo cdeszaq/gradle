@@ -118,9 +118,6 @@ public abstract class AbstractExternalModuleDependency extends AbstractModuleDep
 
     @Override
     public void inheritSubgraphConstraints() {
-        String versionString = getVersion();
-        assertExactVersion(versionString);
-        versionConstraint.strictly(versionString);
         this.inheritSubgraphConstraints = true;
     }
 
