@@ -61,7 +61,8 @@ class BaselineVersion implements VersionResults {
             def diff = currentVersionMean - thisVersionMean
             def desc = diff > Duration.millis(0) ? "slower" : "faster"
             sb.append("Difference: ${diff.abs().format()} $desc (${toMillis(diff.abs())}), ${PrettyCalculator.percentChange(currentVersionMean, thisVersionMean)}%\n")
-            sb.append("Standard error: " + standardError(current) + "\n")
+            sb.append("Diff standard error: " + diffStandardError(current) + " " + new DataSeries(diffStandardError(current)).standardError + "\n")
+            sb.append("Ratio standard error: " + ratioStandardError(current) + " " + new DataSeries(ratioStandardError(current)).standardError + "\n")
             sb.append(current.speedStats)
             sb.append(results.speedStats)
             sb.toString()
@@ -70,7 +71,7 @@ class BaselineVersion implements VersionResults {
         }
     }
 
-    def standardError(MeasuredOperationList current) {
+    def diffStandardError(MeasuredOperationList current) {
         assert results.size() == current.size()
 
         def (resultsTotalTime, currentTotalTime) = [results.totalTime, current.totalTime]
@@ -78,10 +79,23 @@ class BaselineVersion implements VersionResults {
         assert currentTotalTime.first().units == unit
 
         def zippedValues = [resultsTotalTime.asDoubleList(), currentTotalTime.asDoubleList()].transpose()
-        def diffs = zippedValues.collect { double resultsTime, double currentTime ->
+        zippedValues.collect { double resultsTime, double currentTime ->
             Amount.valueOf((resultsTime - currentTime) as BigDecimal, unit)
         }
-        new DataSeries(diffs).standardError.format()
+    }
+
+    // TODO dedup
+    def ratioStandardError(MeasuredOperationList current) {
+        assert results.size() == current.size()
+
+        def (resultsTotalTime, currentTotalTime) = [results.totalTime, current.totalTime]
+        def unit = resultsTotalTime.first().units
+        assert currentTotalTime.first().units == unit
+
+        def zippedValues = [resultsTotalTime.asDoubleList(), currentTotalTime.asDoubleList()].transpose()
+        zippedValues.collect { double resultsTime, double currentTime ->
+            Amount.valueOf((resultsTime / currentTime) as BigDecimal, unit)
+        }
     }
 
     boolean significantlyFasterThan(MeasuredOperationList other, double minConfidence = MINIMUM_CONFIDENCE) {
